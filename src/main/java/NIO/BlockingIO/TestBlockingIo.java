@@ -1,4 +1,4 @@
-package chapter1.BlockingIO;
+package NIO.BlockingIO;
 
 import org.junit.Test;
 
@@ -12,44 +12,60 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 
 /**
- * @ClassName: TestBlockingIo2
- * @Description: TODO
+ * @ClassName: TestBlockingIo
+ * @Description: 测试阻塞io
+ * 一、使用NIO完成网络通信的三个核心
+ * 1.Channel（通道）负责连接
+ * java.nio.channel.Channel 接口
+ * |---SelectableChannel
+ * |---SocketChannel
+ * |---ServerSocketChannel
+ * |---DatagramChannel
+ * <p>
+ * |---Pipe.SinkChannel
+ * |---Pipe.SourceChannel
+ * FileChannel不是可选择模式；Selectable针对的是网络传输的Channel不针对本地Channel；
+ * 选择器Selector用来监控网络Channel
+ * <p>
+ * 2.Buffer(缓冲区)：负责数据的存取；
+ * <p>
+ * <p>
+ * 3.Selector（选择器）：是SelectableChannel的多路复用器，用于监控SelectableChannel的IO状况；
  * @Author: wuwx
- * @Date: 2019-01-29 13:45
+ * @Date: 2019-01-29 11:13
  **/
-public class TestBlockingIo2 {
+public class TestBlockingIo {
     /**
-     * 客户端
+     * 客户端向服务器发送图片数据
      */
     @Test
     public void client() {
         SocketChannel socketChannel = null;
         FileChannel inChannel = null;
         try {
-            //1.连接到服务器；
-            socketChannel = SocketChannel.open(new InetSocketAddress("127.0.0.1", 9999));
-            //2.获取文件数据通道；
+            //1.获取通道
+            socketChannel = SocketChannel.open(new InetSocketAddress("127.0.0.1", 9898));
             inChannel = FileChannel.open(Paths.get("1.jpg"), StandardOpenOption.READ);
-            //3.将文件读取到buffer中;在从buffer写入到与服务器连接的通道中；
+            //2.分配指定大小的缓冲区
             ByteBuffer byteBuffer = ByteBuffer.allocate(1024);
             while (inChannel.read(byteBuffer) != -1) {
                 byteBuffer.flip();
+                //3.读取本地文件并发送到服务器;
                 socketChannel.write(byteBuffer);
                 byteBuffer.clear();
             }
-            //socketChannel.shutdownOutput();
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
             try {
-                if(socketChannel!=null){
+                if (socketChannel != null) {
                     socketChannel.close();
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
             try {
-                if(inChannel!=null){
+                if (inChannel != null) {
                     inChannel.close();
                 }
             } catch (IOException e) {
@@ -60,33 +76,33 @@ public class TestBlockingIo2 {
     }
 
     /**
-     * 服务端；
+     * 服务端接收客户端的数据；
      */
     @Test
     public void server() {
-
         ServerSocketChannel serverSocketChannel = null;
         SocketChannel socketChannel = null;
-        FileChannel fileChannel = null;
+        FileChannel outChannel = null;
         try {
-            //1.获取服务器上某个端口上连接的通道；
-            serverSocketChannel = ServerSocketChannel.open().bind(new InetSocketAddress(9999));
-            //设置该通道为非阻塞；
+            //1.获取通道；并且绑定端口号；
+            serverSocketChannel = ServerSocketChannel.open().bind(new InetSocketAddress(9898));
+            //TODO  默认阻塞；
             serverSocketChannel.configureBlocking(true);
-            //2.获取与客户端连接的通道；
+            //2.获取客户端连接的通道；
             socketChannel = serverSocketChannel.accept();
-            //3.使用文件通道接收客户端传输过来的数据；
-            fileChannel = FileChannel.open(Paths.get("3.jpg"), StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
-
+            //3.接收客户端的数据并保存到本地；
+            outChannel = FileChannel.open(Paths.get("2.jpg"), StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
             //4.分配缓冲区
             ByteBuffer byteBuffer = ByteBuffer.allocate(1024);
-            if (socketChannel != null) {
-                while (socketChannel.read(byteBuffer) != -1) {
-                    byteBuffer.flip();
-                    fileChannel.write(byteBuffer);
-                    byteBuffer.clear();
-                }
+            // read，write都是针对Channel本身的操作，
+            // read表示将channel中的数据读取到缓冲区，
+            // write表示将缓冲区中的数据写到channel中；
+            while (socketChannel.read(byteBuffer) != -1) {
+                byteBuffer.flip();
+                outChannel.write(byteBuffer);
+                byteBuffer.clear();
             }
+
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
@@ -98,22 +114,17 @@ public class TestBlockingIo2 {
                 e.printStackTrace();
             }
             try {
-                if (socketChannel != null) {
-                    socketChannel.close();
-                }
+                socketChannel.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
             try {
-                if (fileChannel != null) {
-                    fileChannel.close();
-                }
+                outChannel.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
 
         }
-
     }
 
 
