@@ -50,7 +50,9 @@ public class MyWebSocketServer {
                         @Override
                         protected void initChannel(SocketChannel ch) throws Exception {
                             ChannelPipeline pipeline = ch.pipeline();
+                            //编解码字节与HttpRequest,HttpContent,LastHttpContent
                             pipeline.addLast(new HttpServerCodec());
+                            //写入一个文件的内容；
                             pipeline.addLast(new ChunkedWriteHandler());
                             //聚合
                             pipeline.addLast(new HttpObjectAggregator(8192));
